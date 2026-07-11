@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node
+node_modules/
+.next/
+dist/
+build/
+.turbo/
+
+# Data / models / vectors / logs
+data/
+chroma/
+*.chroma
+*.sqlite
+*.db
+logs/
+*.log
+
+# Cloned repos SAGE will analyze
+workspace/
+repos/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-volumes/
