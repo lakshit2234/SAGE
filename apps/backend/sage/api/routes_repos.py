@@ -10,6 +10,7 @@ from sage.db.models import Repository
 from sage.schemas.repository import ConnectRepoRequest, RepositoryOut
 from sage.services.chunker import chunk_repository
 from sage.services.git_ops import clone_or_update_repo, get_head_commit_sha, list_source_files
+from sage.services.vector_store import query_similar, upsert_chunks
 from sage.core.logging import get_logger
 
 log = get_logger(__name__)
@@ -46,6 +47,7 @@ async def connect_repo(
 
     files = list_source_files(local_path)
     chunks = chunk_repository(local_path, files)
+    embedded_count = await upsert_chunks(body.owner, body.name, chunks)
 
     repo_row.last_indexed_commit_sha = sha
     repo_row.is_active = True
@@ -58,6 +60,7 @@ async def connect_repo(
         name=body.name,
         files=len(files),
         chunks=len(chunks),
+        embedded=embedded_count,
         sha=sha,
     )
     return repo_row
@@ -67,3 +70,7 @@ async def connect_repo(
 async def list_connected_repos(session: AsyncSession = Depends(get_session)) -> list[Repository]:
     result = await session.scalars(select(Repository).where(Repository.is_active.is_(True)))
     return list(result.all())
+
+@router.get("/{owner}/{name}/search")
+async def search_repo_chunks(owner: str, name: str, q: str, k: int = 8) -> list[dict]:
+    return await query_similar(owner, name, q, n_results=k)
