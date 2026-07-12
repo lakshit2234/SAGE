@@ -13,6 +13,7 @@ def main() -> None:
         host=settings.app_host,
         port=settings.app_port,
         reload=settings.app_env == "dev",
+        reload_excludes=["workspace/*", "data/*", "*.pyc"],
         log_level=settings.log_level.lower(),
     )
 
