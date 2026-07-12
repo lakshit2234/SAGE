@@ -44,7 +44,16 @@ class Settings(BaseSettings):
     chroma_path: str = "./data/chroma"
 
     # ---- Storage ----
+    # ---- Storage ----
     repos_dir: str = "./workspace/repos"
+
+    # ---- GitHub OAuth ----
+    github_oauth_client_id: str = ""
+    github_oauth_client_secret: str = ""
+    github_oauth_callback_url: str = "http://localhost:8000/auth/github/callback"
+
+    # ---- Session ----
+    session_secret: str = "dev-only-change-me"
 
     @property
     def postgres_dsn(self) -> str:
