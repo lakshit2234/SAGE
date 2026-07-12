@@ -10,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from sage.api.routes_auth import router as auth_router
 from sage.api.routes_health import router as health_router
 from sage.api.routes_repos import router as repos_router
+from sage.api.routes_docs import router as docs_router
 from sage.api.routes_users import router as users_router
 from sage.core.config import get_settings
 from sage.core.logging import configure_logging, get_logger
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(repos_router)
+    app.include_router(docs_router)
 
     @app.get("/", tags=["root"])
     async def root() -> dict[str, str]:
