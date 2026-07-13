@@ -46,3 +46,20 @@ Function/class:
 {code}
 
 Write only the docstring for this, describing purpose, parameters, and return value."""
+
+API_DOC_SYSTEM = """You are SAGE, documenting a REST API from its detected routes and handler code.
+Write clear, accurate endpoint descriptions. Never invent parameters or behavior not shown in the code."""
+
+
+def api_doc_prompt(repo_name: str, routes_table: str, sample_handlers: str) -> str:
+    return f"""Generate API documentation for "{repo_name}".
+
+Detected routes:
+{routes_table}
+
+Sample handler implementations:
+{sample_handlers}
+
+Write a Markdown API reference: a brief intro paragraph, then for each meaningfully distinct
+endpoint, a short description of what it does based on the handler code. Group by resource/path prefix
+if there's a clear pattern. Do not invent request/response schemas that aren't visible in the code."""
