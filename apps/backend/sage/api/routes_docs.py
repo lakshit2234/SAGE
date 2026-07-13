@@ -16,6 +16,7 @@ from sage.services.doc_generator import content_hash, generate_readme
 from sage.services.git_ops import get_head_commit_sha, list_source_files
 from sage.services.api_doc_generator import generate_api_docs
 from sage.services.dependency_graph import build_dependency_graph
+from sage.services.pr_bot import open_docs_pr
 from sage.services.mermaid_renderer import render_module_graph
 from sage.services.module_docs import generate_module_docs
 
@@ -254,6 +255,49 @@ async def generate_architecture_diagram(
         "module_count": len(nodes),
         "mermaid": mermaid_src,
     }
+
+
+@router.post("/{owner}/{name}/open-pr")
+async def open_docs_pull_request(
+    owner: str, name: str, doc_run_id: str, session: AsyncSession = Depends(get_session)
+) -> dict:
+    """Take artifacts from a completed doc_run and open a PR with them."""
+    import uuid as uuid_mod
+
+    from sage.db.models import DocArtifact as DocArtifactModel
+    from sage.db.models import DocRun as DocRunModel
+
+    repo_row = await session.scalar(
+        select(Repository).where(Repository.owner == owner, Repository.name == name)
+    )
+    if repo_row is None or not repo_row.github_access_token:
+        raise HTTPException(status_code=404, detail="Repository not connected.")
+
+    try:
+        run_uuid = uuid_mod.UUID(doc_run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid doc_run_id") from exc
+
+    doc_run = await session.get(DocRunModel, run_uuid)
+    if doc_run is None or doc_run.repository_id != repo_row.id:
+        raise HTTPException(status_code=404, detail="doc_run not found for this repository")
+
+    artifacts_result = await session.scalars(
+        select(DocArtifactModel).where(DocArtifactModel.doc_run_id == run_uuid)
+    )
+    artifacts = list(artifacts_result.all())
+    if not artifacts:
+        raise HTTPException(status_code=400, detail="No artifacts found for this doc_run")
+
+    try:
+        result = open_docs_pr(
+            owner, name, repo_row.github_access_token, repo_row.default_branch, artifacts, doc_run_id
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.error("pr_bot_failed", owner=owner, name=name, error=str(exc))
+        raise HTTPException(status_code=502, detail=f"PR creation failed: {exc}") from exc
+
+    return result
 
 @router.get("/{owner}/{name}/runs")
 async def list_doc_runs(owner: str, name: str, session: AsyncSession = Depends(get_session)) -> list[dict]:
