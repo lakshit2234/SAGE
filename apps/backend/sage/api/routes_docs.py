@@ -15,6 +15,8 @@ from sage.services.chunker import chunk_repository
 from sage.services.doc_generator import content_hash, generate_readme
 from sage.services.git_ops import get_head_commit_sha, list_source_files
 from sage.services.api_doc_generator import generate_api_docs
+from sage.services.dependency_graph import build_dependency_graph
+from sage.services.mermaid_renderer import render_module_graph
 from sage.services.module_docs import generate_module_docs
 
 log = get_logger(__name__)
@@ -201,6 +203,56 @@ async def generate_api_docs_for_repo(
         "artifact_id": str(artifact.id),
         "routes_found": route_count,
         "content": doc_text,
+    }
+
+@router.post("/{owner}/{name}/generate/architecture")
+async def generate_architecture_diagram(
+    owner: str, name: str, session: AsyncSession = Depends(get_session)
+) -> dict:
+    repo_row = await session.scalar(
+        select(Repository).where(Repository.owner == owner, Repository.name == name)
+    )
+    if repo_row is None:
+        raise HTTPException(status_code=404, detail="Repository not connected. POST /repos/connect first.")
+
+    settings = get_settings()
+    local_path = Path(settings.repos_dir) / owner / name
+    if not local_path.exists():
+        raise HTTPException(status_code=409, detail="Local clone missing. Reconnect the repo.")
+
+    sha = get_head_commit_sha(local_path)
+    files = list_source_files(local_path)
+    nodes = build_dependency_graph(local_path, files)
+    mermaid_src = render_module_graph(nodes)
+
+    doc_run = DocRun(
+        repository_id=repo_row.id,
+        triggered_by="manual",
+        commit_sha=sha,
+        status=DocRunStatus.SUCCESS,
+        stats={"modules": len(nodes)},
+    )
+    session.add(doc_run)
+    await session.flush()
+
+    content = f"# Architecture Diagram\n\n```mermaid\n{mermaid_src}\n```\n"
+    artifact = DocArtifact(
+        doc_run_id=doc_run.id,
+        artifact_type=ArtifactType.ARCHITECTURE_DIAGRAM,
+        file_path="docs/ARCHITECTURE.generated.md",
+        content=content,
+        content_hash=content_hash(content),
+    )
+    session.add(artifact)
+    await session.commit()
+    await session.refresh(artifact)
+
+    log.info("architecture_diagram_generated", owner=owner, name=name, modules=len(nodes))
+    return {
+        "doc_run_id": str(doc_run.id),
+        "artifact_id": str(artifact.id),
+        "module_count": len(nodes),
+        "mermaid": mermaid_src,
     }
 
 @router.get("/{owner}/{name}/runs")
