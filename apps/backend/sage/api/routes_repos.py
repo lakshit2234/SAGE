@@ -51,6 +51,7 @@ async def connect_repo(
 
     repo_row.last_indexed_commit_sha = sha
     repo_row.is_active = True
+    repo_row.github_access_token = token
     await session.commit()
     await session.refresh(repo_row)
 

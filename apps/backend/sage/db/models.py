@@ -37,6 +37,7 @@ class Repository(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), index=True)
     default_branch: Mapped[str] = mapped_column(String(100), default="main")
     github_installation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    github_access_token: Mapped[str | None] = mapped_column(String(255), nullable=True)  # dev-only; encrypt in prod
     is_active: Mapped[bool] = mapped_column(default=True)
     last_indexed_commit_sha: Mapped[str | None] = mapped_column(String(64), nullable=True)
 

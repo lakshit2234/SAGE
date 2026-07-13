@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     # ---- Session ----
     session_secret: str = "dev-only-change-me"
 
+    # ---- GitHub Webhook ----
+    github_webhook_secret: str = ""
+
     @property
     def postgres_dsn(self) -> str:
         return (
